@@ -9,7 +9,7 @@ import (
 	"google.golang.org/genai"
 )
 
-const sparkHost = "spark-e2fe"
+var sparkHost = "spark-e2fe"
 
 // gpuStatusDecl describes the gpu_status tool to the model.
 var gpuStatusDecl = &genai.FunctionDeclaration{

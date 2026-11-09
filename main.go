@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"google.golang.org/genai"
@@ -16,6 +18,9 @@ const (
 )
 
 func main() {
+	flag.StringVar(&sparkHost, "host", sparkHost, "SSH host of the DGX Spark")
+	flag.Parse()
+
 	ctx := context.Background()
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{Backend: genai.BackendGeminiAPI})
 	if err != nil {
@@ -25,7 +30,12 @@ func main() {
 	config := &genai.GenerateContentConfig{
 		Tools: []*genai.Tool{{FunctionDeclarations: []*genai.FunctionDeclaration{gpuStatusDecl}}},
 	}
+
 	question := "Which GPU is installed, and what are its utilization and temperature right now?"
+	if flag.NArg() > 0 {
+        question = strings.Join(flag.Args(), " ")
+    }
+
 	contents := []*genai.Content{genai.NewContentFromText(question, genai.RoleUser)}
 	
 	for step := 1; step <= maxSteps; step++ {
