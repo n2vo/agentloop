@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"time"
 
 	"google.golang.org/genai"
 )
@@ -27,11 +29,20 @@ func main() {
 	contents := []*genai.Content{genai.NewContentFromText(question, genai.RoleUser)}
 	
 	for step := 1; step <= maxSteps; step++ {
+		start := time.Now()
 		resp, err := client.Models.GenerateContent(ctx, model, contents, config)
 		if err != nil {
 			log.Fatal(err)
 		}
+		modelLatency := time.Since(start).Round(time.Millisecond)
 		calls := resp.FunctionCalls()
+		var promptTokens int32
+		if resp.UsageMetadata != nil {
+			promptTokens = resp.UsageMetadata.PromptTokenCount
+		}
+		log.Printf("step=%d prompt_tokens=%d model_latency=%s tool_calls=%d",
+			step, promptTokens, modelLatency, len(calls))
+
 		if len(calls) == 0 {
 			fmt.Println(resp.Text())
 			return
@@ -39,6 +50,7 @@ func main() {
 		contents = append(contents, resp.Candidates[0].Content)
 		var parts []*genai.Part
 		for _, call := range calls {
+			toolStart := time.Now()
 			var result map[string]any
 			switch call.Name {
 			case gpuStatusDecl.Name:
@@ -46,6 +58,10 @@ func main() {
 			default:
 				result = map[string]any{"error": "unknown tool: " + call.Name}
 			}
+			resultJSON, _ := json.Marshal(result)
+			log.Printf("step=%d tool=%s args=%v result_bytes=%d tool_latency=%s",
+				step, call.Name, call.Args, len(resultJSON), time.Since(toolStart).Round(time.Millisecond))
+
 			part := genai.NewPartFromFunctionResponse(call.Name, result)
 			part.FunctionResponse.ID = call.ID
 			parts = append(parts, part)
