@@ -10,5 +10,5 @@ func TestGPUStatus(t *testing.T) {
 	if e, ok := r["error"]; ok {
 		t.Fatalf("gpuStatus error: %v (output: %v)", e, r["output"])
 	}
-	t.Logf("ouptut: %v", r["output"])
+	t.Logf("output: %v", r["output"])
 }

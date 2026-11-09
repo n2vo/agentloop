@@ -5,9 +5,18 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+
+	"google.golang.org/genai"
 )
 
 const sparkHost = "spark-e2fe"
+
+// gpuStatusDecl describes the gpu_status tool to the model.
+var gpuStatusDecl = &genai.FunctionDeclaration{
+	Name:			"gpu_status",
+	Description:	"Returns the current status of each GPU on the DGX Spark as CSV lines: name, utilization percent, temperature in Celsius, power draw in watts.",
+}
+
 
 // gpuStatus runs nvidia-smi on the DGX Spark over SSH and returns its CSV output.
 func gpuStatus(ctx context.Context) map[string]any {
