@@ -9,14 +9,27 @@ import (
 	"google.golang.org/genai"
 )
 
+// Tool defines the contract for tools available to the agent.
+type Tool interface {
+	Name() string
+	Declaration() *genai.FunctionDeclaration
+	Execute(
+		ctx context.Context,
+		args map[string]any,
+	) (map[string]any, error)
+}
+
 var sparkHost = "spark-e2fe"
 
 // gpuStatusDecl describes the gpu_status tool to the model.
 var gpuStatusDecl = &genai.FunctionDeclaration{
-	Name:			"gpu_status",
-	Description:	"Returns the current status of each GPU on the DGX Spark as CSV lines: name, utilization percent, temperature in Celsius, power draw in watts.",
+	Name:        "gpu_status",
+	Description: "Returns the current status of each GPU on the DGX Spark as CSV lines: name, utilization percent, temperature in Celsius, power draw in watts.",
+	Parameters: &genai.Schema{
+		Type:       genai.TypeObject,
+		Properties: map[string]*genai.Schema{},
+	},
 }
-
 
 // gpuStatus runs nvidia-smi on the DGX Spark over SSH and returns its CSV output.
 func gpuStatus(ctx context.Context) map[string]any {
@@ -32,4 +45,22 @@ func gpuStatus(ctx context.Context) map[string]any {
 		result["error"] = err.Error()
 	}
 	return result
+}
+
+// GPUStatusTool adapts gpuStatus to the Tool interface.
+type GPUStatusTool struct{}
+
+func (t *GPUStatusTool) Name() string {
+	return gpuStatusDecl.Name
+}
+
+func (t *GPUStatusTool) Declaration() *genai.FunctionDeclaration {
+	return gpuStatusDecl
+}
+
+func (t *GPUStatusTool) Execute(
+	ctx context.Context,
+	args map[string]any,
+) (map[string]any, error) {
+	return gpuStatus(ctx), nil
 }
