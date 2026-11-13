@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	model = "gemini-3.5-flash"
+	model    = "gemini-3.5-flash"
 	maxSteps = 5
 )
 
@@ -27,17 +27,31 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//config := &genai.GenerateContentConfig{
+	//	Tools: []*genai.Tool{{FunctionDeclarations: []*genai.FunctionDeclaration{gpuStatusDecl}}},
+	//}
+
+	registry := NewToolRegistry()
+
+	if err := registry.Register(&GPUStatusTool{}); err != nil {
+		log.Fatal(err)
+	}
+
+	executor := NewToolExecutor(registry)
+
 	config := &genai.GenerateContentConfig{
-		Tools: []*genai.Tool{{FunctionDeclarations: []*genai.FunctionDeclaration{gpuStatusDecl}}},
+		Tools: []*genai.Tool{{
+			FunctionDeclarations: registry.Declarations(),
+		}},
 	}
 
 	question := "Which GPU is installed, and what are its utilization and temperature right now?"
 	if flag.NArg() > 0 {
-        question = strings.Join(flag.Args(), " ")
-    }
+		question = strings.Join(flag.Args(), " ")
+	}
 
 	contents := []*genai.Content{genai.NewContentFromText(question, genai.RoleUser)}
-	
+
 	for step := 1; step <= maxSteps; step++ {
 		start := time.Now()
 		resp, err := client.Models.GenerateContent(ctx, model, contents, config)
@@ -61,12 +75,16 @@ func main() {
 		var parts []*genai.Part
 		for _, call := range calls {
 			toolStart := time.Now()
-			var result map[string]any
-			switch call.Name {
-			case gpuStatusDecl.Name:
-				result = gpuStatus(ctx)
-			default:
-				result = map[string]any{"error": "unknown tool: " + call.Name}
+			//var result map[string]any
+			//switch call.Name {
+			//case gpuStatusDecl.Name:
+			//	result = gpuStatus(ctx)
+			//default:
+			//	result = map[string]any{"error": "unknown tool: " + call.Name}
+			//}
+			result, err := executor.Execute(ctx, call.Name, call.Args)
+			if err != nil {
+				result = map[string]any{"error": err.Error()}
 			}
 			resultJSON, _ := json.Marshal(result)
 			log.Printf("step=%d tool=%s args=%v result_bytes=%d tool_latency=%s",
